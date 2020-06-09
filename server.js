@@ -19,6 +19,26 @@ const generateJwt =(id,name,role) =>{
     }, jwtSecret)
 }
 
+const checkJwt = (req, res, next) =>{
+    try {
+        if (!req.header('Authorization')){
+            throw 'Il y as pas de header Authorization dans la requete'
+        }
+        const authorizationPart = req.header('Authorization').split(' ')
+        let token = authorizationPart[1]
+        jwt.verify(token, jwtSecret, (error, decodeToken)=>{
+            if(error){
+                throw error
+            }
+            req.token =decodeToken
+            next()
+        })
+    }catch(error){
+        console.log(error)
+        res.status(401).json({msg:'Accès refusé'})
+    }
+}
+
 const app= express()
 app.use(helmet())
 app.use(bodyParser.json())
@@ -36,8 +56,14 @@ app.post('/signin', (req, res)=>{
     return res.json({ msg: `${ username } a l’id ${ id } et est ${ role }.` }) 
 })
 
-app.get('/admin', (req, res) => {
-    return res.json({ msg: 'Bienvenue admin !' })
+app.get('/admin',checkJwt, (req, res) => {
+    const { role, name } = req.token
+    if (role !== 'admin') {
+        console.log(`L’utilisateur ${name} n’est pas admin !`)
+        res.status(401).json({ msg: 'Accès refusé !' })
+        return
+    }
+    res.json({ msg: `Bienvenue ${ name } !` })
 })
 
 
